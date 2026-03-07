@@ -20,13 +20,14 @@ export default function SignupPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: `${window.location.origin}/onboarding/step-2` },
@@ -34,9 +35,57 @@ export default function SignupPage() {
     if (error) {
       setError(error.message);
       setLoading(false);
-    } else {
+    } else if (data.session) {
+      // Email confirmation disabled — session immédiate
       router.push("/onboarding/step-2");
+    } else {
+      // Email confirmation requise
+      setConfirmed(true);
+      setLoading(false);
     }
+  }
+
+  if (confirmed) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center px-4">
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: "radial-gradient(ellipse 60% 50% at 50% 0%, rgba(16,185,129,0.07) 0%, transparent 70%)"
+        }} />
+        <motion.div
+          initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative w-full max-w-md text-center"
+        >
+          <div className="flex items-center justify-center gap-2.5 mb-8">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center">
+              <span className="font-[family-name:var(--font-display)] font-bold text-white">S</span>
+            </div>
+            <span className="font-[family-name:var(--font-display)] font-bold text-white text-xl">Secretaria</span>
+          </div>
+          <div className="bg-[#13131A] border border-white/5 rounded-2xl p-8">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-5">
+              <Check size={24} className="text-emerald-400" />
+            </div>
+            <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-white mb-2">
+              Vérifiez votre email
+            </h1>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              Un lien de confirmation a été envoyé à<br />
+              <span className="text-white font-medium">{email}</span>
+            </p>
+            <p className="text-slate-500 text-xs mt-4">
+              Cliquez sur le lien dans l&apos;email pour activer votre compte et accéder à l&apos;onboarding.
+            </p>
+          </div>
+          <p className="text-center text-slate-500 text-sm mt-6">
+            Déjà confirmé ?{" "}
+            <Link href="/login" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+              Se connecter →
+            </Link>
+          </p>
+        </motion.div>
+      </div>
+    );
   }
 
   return (
