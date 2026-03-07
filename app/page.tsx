@@ -1,6 +1,7 @@
 import Navbar from "@/components/ui/Navbar";
 import Footer from "@/components/ui/Footer";
 import Hero from "@/components/sections/Hero";
+import DashboardPreview from "@/components/sections/DashboardPreview";
 import Features from "@/components/sections/Features";
 import HowItWorks from "@/components/sections/HowItWorks";
 import Testimonials from "@/components/sections/Testimonials";
@@ -13,6 +14,7 @@ export default function Home() {
       <Navbar />
       <main>
         <Hero />
+        <DashboardPreview />
         <Features />
         <HowItWorks />
         <Testimonials />
