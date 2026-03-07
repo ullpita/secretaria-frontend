@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Mail, Calendar, CheckCircle, XCircle, ExternalLink, Loader2, Phone } from "lucide-react";
-import { getIntegrations, type Integration } from "@/lib/supabase/queries";
+import { getIntegrations, getOrg, type Integration } from "@/lib/supabase/queries";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "https://web-production-0c79f.up.railway.app";
 
@@ -34,9 +34,14 @@ const COMING_SOON = [
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orgId, setOrgId] = useState<string | null>(null);
 
   useEffect(() => {
-    getIntegrations().then((data) => { setIntegrations(data); setLoading(false); });
+    Promise.all([getIntegrations(), getOrg()]).then(([data, org]) => {
+      setIntegrations(data);
+      setOrgId(org?.id ?? null);
+      setLoading(false);
+    });
   }, []);
 
   function isConnected(provider: string) {
@@ -50,7 +55,8 @@ export default function IntegrationsPage() {
   }
 
   function handleConnect(provider: string) {
-    window.location.href = `${BACKEND_URL}/auth/google?scope=${provider}&redirect=/dashboard/integrations`;
+    if (!orgId) return;
+    window.location.href = `${BACKEND_URL}/auth/google?scope=${provider}&redirect=/dashboard/integrations&org_id=${orgId}`;
   }
 
   return (
