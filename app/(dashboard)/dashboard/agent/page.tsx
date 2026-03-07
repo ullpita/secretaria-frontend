@@ -4,8 +4,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Save, Phone, Mic, MicOff, Volume2, Settings2,
-  CheckCircle, Info, ChevronDown
+  CheckCircle, Info, ChevronDown, Trash2, Loader2
 } from "lucide-react";
+import { requestAccountDeletion } from "@/lib/supabase/queries";
 
 const VOICES = [
   { id: "nova",    label: "Nova",    desc: "Voix féminine, chaleureuse" },
@@ -29,6 +30,22 @@ export default function AgentPage() {
   const [saved, setSaved]             = useState(false);
   const [calling, setCalling]         = useState(false);
   const [called, setCalled]           = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [requesting, setRequesting]       = useState(false);
+  const [emailSent, setEmailSent]         = useState(false);
+  const [deleteError, setDeleteError]     = useState<string | null>(null);
+
+  async function handleRequestDelete() {
+    setRequesting(true);
+    setDeleteError(null);
+    try {
+      await requestAccountDeletion();
+      setEmailSent(true);
+    } catch (e: unknown) {
+      setDeleteError(e instanceof Error ? e.message : "Erreur lors de l'envoi.");
+      setRequesting(false);
+    }
+  }
 
   function save() {
     setSaved(true);
@@ -173,6 +190,61 @@ export default function AgentPage() {
         <p className="text-slate-600 text-xs">
           Voix sélectionnée : <span className="text-slate-400">{currentVoice.label} — {currentVoice.desc}</span>
         </p>
+      </div>
+
+      {/* Danger zone */}
+      <div className="bg-[#13131A] border border-red-500/10 rounded-2xl p-5">
+        <div className="flex items-center gap-2 text-sm font-medium text-red-400 mb-4">
+          <Trash2 size={15} />
+          Zone dangereuse
+        </div>
+        {emailSent ? (
+          <div className="flex items-center gap-3 p-4 bg-emerald-500/5 border border-emerald-500/15 rounded-xl">
+            <CheckCircle size={18} className="text-emerald-400 shrink-0" />
+            <div>
+              <p className="text-white text-sm font-medium">Email envoyé</p>
+              <p className="text-slate-500 text-xs mt-0.5">Cliquez sur le lien dans votre email pour confirmer la suppression. Le lien expire dans 15 min.</p>
+            </div>
+          </div>
+        ) : !confirmDelete ? (
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white text-sm font-medium">Supprimer mon compte</p>
+              <p className="text-slate-500 text-xs mt-0.5">Supprime définitivement votre compte et toutes vos données.</p>
+            </div>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
+            >
+              <Trash2 size={14} />
+              Supprimer
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-white font-medium">Un email de confirmation vous sera envoyé. Continuer ?</p>
+            {deleteError && (
+              <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">{deleteError}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={handleRequestDelete}
+                disabled={requesting}
+                className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-all disabled:opacity-50"
+              >
+                {requesting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Envoyer l&apos;email de confirmation
+              </button>
+              <button
+                onClick={() => { setConfirmDelete(false); setDeleteError(null); }}
+                disabled={requesting}
+                className="text-sm px-4 py-2.5 rounded-xl bg-white/5 border border-white/5 text-slate-400 hover:text-white transition-all disabled:opacity-50"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Test call */}

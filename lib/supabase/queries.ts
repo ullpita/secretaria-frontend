@@ -172,3 +172,15 @@ export async function getIntegrations(): Promise<Integration[]> {
     .select("id, provider, connected_at");
   return data ?? [];
 }
+
+export async function requestAccountDeletion(): Promise<void> {
+  const sb = createClient();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error("Not authenticated");
+
+  const res = await fetch(`${BACKEND_URL}/auth/account/request-delete`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
