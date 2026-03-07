@@ -1,212 +1,146 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Mail, Calendar, Phone, CheckCircle, XCircle, AlertCircle,
-  RefreshCw, ExternalLink, Plus, Trash2, Copy
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Mail, Calendar, CheckCircle, XCircle, ExternalLink, Loader2, Phone } from "lucide-react";
+import { getIntegrations, type Integration } from "@/lib/supabase/queries";
 
-type IntegStatus = "connected" | "disconnected" | "error";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "https://web-production-0c79f.up.railway.app";
 
-interface Integration {
-  id: string;
-  name: string;
-  description: string;
-  status: IntegStatus;
-  detail: string | null;
-  icon: React.FC<{ size?: number; className?: string }>;
-  color: string;
-  bg: string;
-}
+const INTEGRATIONS_CONFIG = [
+  {
+    provider: "gmail",
+    label: "Gmail",
+    desc: "Envoyer des emails automatiquement après chaque appel.",
+    icon: Mail,
+    color: "text-red-400",
+    bg: "bg-red-500/10 border-red-500/20",
+  },
+  {
+    provider: "calendar",
+    label: "Google Calendar",
+    desc: "Créer des rendez-vous directement dans votre agenda.",
+    icon: Calendar,
+    color: "text-blue-400",
+    bg: "bg-blue-500/10 border-blue-500/20",
+  },
+];
 
-const STATUS_CONFIG = {
-  connected:    { icon: CheckCircle,  label: "Connecté",      color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-  disconnected: { icon: XCircle,      label: "Non connecté",  color: "text-slate-500",   bg: "bg-slate-500/10 border-slate-500/20" },
-  error:        { icon: AlertCircle,  label: "Erreur",        color: "text-red-400",     bg: "bg-red-500/10 border-red-500/20" },
-};
-
-const PHONE_NUMBERS = [
-  { number: "+33 1 86 95 00 42", label: "Numéro principal", active: true },
+const COMING_SOON = [
+  { label: "Notion", desc: "Synchroniser les résumés d'appels dans vos bases Notion." },
+  { label: "Slack", desc: "Recevoir des notifications d'appels dans vos canaux." },
+  { label: "HubSpot", desc: "Créer des contacts et activités CRM automatiquement." },
 ];
 
 export default function IntegrationsPage() {
-  const [integrations, setIntegrations] = useState<Integration[]>([
-    {
-      id: "gmail",
-      name: "Gmail",
-      description: "Envoi d'emails de confirmation et de rappels depuis votre adresse.",
-      status: "connected",
-      detail: "contact@cabinet-moreau.fr",
-      icon: Mail,
-      color: "text-red-400",
-      bg: "bg-red-500/10",
-    },
-    {
-      id: "calendar",
-      name: "Google Calendar",
-      description: "Vérification des disponibilités et création automatique de RDV.",
-      status: "disconnected",
-      detail: null,
-      icon: Calendar,
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
-    },
-  ]);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  function disconnect(id: string) {
-    setIntegrations((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, status: "disconnected", detail: null } : i))
-    );
+  useEffect(() => {
+    getIntegrations().then((data) => { setIntegrations(data); setLoading(false); });
+  }, []);
+
+  function isConnected(provider: string) {
+    return integrations.some((i) => i.provider === provider);
   }
 
-  function connect(id: string) {
-    // Simulated — in prod: redirect to OAuth
-    if (id === "gmail") {
-      window.location.href = "/api/auth/google?scope=gmail&redirect=/dashboard/integrations";
-    } else if (id === "calendar") {
-      window.location.href = "/api/auth/google?scope=calendar&redirect=/dashboard/integrations";
-    }
+  function connectedAt(provider: string) {
+    const i = integrations.find((i) => i.provider === provider);
+    if (!i) return null;
+    return new Date(i.connected_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  }
+
+  function handleConnect(provider: string) {
+    window.location.href = `${BACKEND_URL}/auth/google?scope=${provider}&redirect=/dashboard/integrations`;
   }
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-8">
-      {/* Integrations */}
-      <section>
-        <div className="mb-4">
-          <h2 className="text-white font-semibold text-base">Services connectés</h2>
-          <p className="text-slate-500 text-sm mt-0.5">
-            Sofia utilise ces services pour agir après chaque appel.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          {integrations.map((integ) => {
-            const sc = STATUS_CONFIG[integ.status];
-            const Icon = integ.icon;
-            const StatusIcon = sc.icon;
-
+      {/* Google integrations */}
+      <div>
+        <h2 className="text-white font-semibold text-base mb-4">Intégrations Google</h2>
+        <div className="space-y-4">
+          {INTEGRATIONS_CONFIG.map((cfg) => {
+            const connected = isConnected(cfg.provider);
+            const date = connectedAt(cfg.provider);
+            const Icon = cfg.icon;
             return (
-              <div key={integ.id} className="bg-[#13131A] border border-white/5 rounded-2xl p-5">
-                <div className="flex items-start gap-4">
-                  {/* Icon */}
-                  <div className={`w-11 h-11 rounded-xl ${integ.bg} flex items-center justify-center shrink-0`}>
-                    <Icon size={20} className={integ.color} />
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <h3 className="text-white font-semibold text-sm">{integ.name}</h3>
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg border ${sc.bg} ${sc.color}`}>
-                        <StatusIcon size={10} />
-                        {sc.label}
-                      </span>
-                    </div>
-                    <p className="text-slate-500 text-sm mt-1">{integ.description}</p>
-                    {integ.detail && (
-                      <p className="text-emerald-400 text-xs mt-1.5">{integ.detail}</p>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {integ.status === "connected" ? (
-                      <>
-                        <button
-                          onClick={() => disconnect(integ.id)}
-                          className="text-xs text-slate-500 hover:text-red-400 bg-white/5 hover:bg-red-500/10 border border-white/5 hover:border-red-500/20 px-3 py-2 rounded-xl transition-all"
-                        >
-                          Déconnecter
-                        </button>
-                        <button className="text-xs text-slate-500 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5 p-2 rounded-xl transition-all">
-                          <RefreshCw size={13} />
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => connect(integ.id)}
-                        className="text-xs text-white font-medium bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 px-4 py-2 rounded-xl transition-all"
-                      >
-                        Connecter
-                      </button>
-                    )}
-                  </div>
+              <div key={cfg.provider} className="bg-[#13131A] border border-white/5 rounded-2xl p-5 flex items-center gap-5">
+                <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                  <Icon size={20} className={cfg.color} />
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-white font-medium text-sm">{cfg.label}</p>
+                    {loading ? (
+                      <Loader2 size={12} className="animate-spin text-slate-500" />
+                    ) : connected ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                        <CheckCircle size={10} /> Connecté
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-white/5 px-2 py-0.5 rounded-full">
+                        <XCircle size={10} /> Non connecté
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-slate-500 text-xs mt-0.5">{cfg.desc}</p>
+                  {connected && date && (
+                    <p className="text-slate-600 text-xs mt-1">Connecté le {date}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => handleConnect(cfg.provider)}
+                  className={`shrink-0 flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-xl border transition-all ${
+                    connected
+                      ? "text-slate-400 border-white/5 bg-white/5 hover:bg-white/10"
+                      : "text-white border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20"
+                  }`}
+                >
+                  <ExternalLink size={12} />
+                  {connected ? "Reconnecter" : "Connecter"}
+                </button>
               </div>
             );
           })}
         </div>
-      </section>
+      </div>
 
-      {/* Phone numbers */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-white font-semibold text-base">Numéros de téléphone</h2>
-            <p className="text-slate-500 text-sm mt-0.5">
-              Numéros Twilio sur lesquels Sofia répond.
-            </p>
+      {/* Phone number */}
+      <div>
+        <h2 className="text-white font-semibold text-base mb-4">Numéro de téléphone</h2>
+        <div className="bg-[#13131A] border border-white/5 rounded-2xl p-5 flex items-center gap-5">
+          <div className="w-11 h-11 rounded-xl border border-emerald-500/20 bg-emerald-500/10 flex items-center justify-center shrink-0">
+            <Phone size={20} className="text-emerald-400" />
           </div>
-          <button className="flex items-center gap-2 text-xs text-white font-medium bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 px-3 py-2 rounded-xl transition-all">
-            <Plus size={13} />
-            Ajouter
-          </button>
+          <div className="flex-1">
+            <p className="text-white font-medium text-sm">Numéro Sofia</p>
+            <p className="text-slate-500 text-xs mt-0.5">Configurez un numéro Twilio dans Vapi pour recevoir des appels.</p>
+          </div>
+          <a href="https://vapi.ai" target="_blank" rel="noopener noreferrer"
+            className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-xl border text-slate-400 border-white/5 bg-white/5 hover:bg-white/10 transition-all">
+            <ExternalLink size={12} /> Vapi
+          </a>
         </div>
-
-        <div className="space-y-3">
-          {PHONE_NUMBERS.map((p) => (
-            <div key={p.number} className="bg-[#13131A] border border-white/5 rounded-2xl p-5">
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-                  <Phone size={18} className="text-emerald-400" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-white font-semibold text-sm">{p.number}</p>
-                    {p.active && (
-                      <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                        <span className="w-1 h-1 rounded-full bg-emerald-400 sofia-pulse" />
-                        Actif
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-slate-500 text-xs mt-0.5">{p.label}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => navigator.clipboard.writeText(p.number)}
-                    className="text-slate-500 hover:text-white bg-white/5 hover:bg-white/10 border border-white/5 p-2 rounded-xl transition-all"
-                    title="Copier"
-                  >
-                    <Copy size={13} />
-                  </button>
-                  <button className="text-slate-500 hover:text-red-400 bg-white/5 hover:bg-red-500/10 border border-white/5 hover:border-red-500/20 p-2 rounded-xl transition-all">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      </div>
 
       {/* Coming soon */}
-      <section>
+      <div>
         <h2 className="text-white font-semibold text-base mb-4">Bientôt disponible</h2>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { name: "Notion", desc: "Synchroniser les tâches" },
-            { name: "Slack",  desc: "Alertes en temps réel" },
-            { name: "HubSpot", desc: "CRM automatique" },
-            { name: "Doctolib", desc: "Agenda médical" },
-          ].map((item) => (
-            <div key={item.name} className="bg-[#13131A]/50 border border-white/5 rounded-xl p-4 opacity-50">
-              <p className="text-white text-sm font-medium">{item.name}</p>
-              <p className="text-slate-600 text-xs mt-1">{item.desc}</p>
+        <div className="space-y-3">
+          {COMING_SOON.map((item) => (
+            <div key={item.label} className="bg-[#13131A] border border-white/5 rounded-2xl p-5 flex items-center gap-5 opacity-50">
+              <div className="w-11 h-11 rounded-xl border border-white/5 bg-white/5 flex items-center justify-center shrink-0 text-slate-500 text-xs font-bold">
+                {item.label[0]}
+              </div>
+              <div>
+                <p className="text-white font-medium text-sm">{item.label}</p>
+                <p className="text-slate-500 text-xs mt-0.5">{item.desc}</p>
+              </div>
+              <span className="ml-auto text-xs text-slate-600 bg-white/5 px-2.5 py-1 rounded-full shrink-0">Bientôt</span>
             </div>
           ))}
         </div>
-      </section>
+      </div>
     </div>
   );
 }

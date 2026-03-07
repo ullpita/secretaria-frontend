@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Phone, CheckSquare, Plug, Settings, LogOut,
   ChevronLeft, ChevronRight, Bell
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -18,7 +19,14 @@ const NAV = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
 
   return (
     <div className="flex h-screen bg-[#0A0A0F] overflow-hidden">
@@ -61,7 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             {collapsed ? <ChevronRight size={17} /> : <><ChevronLeft size={17} /><span>Réduire</span></>}
           </button>
-          <button className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all w-full ${collapsed ? "justify-center" : ""}`}>
+          <button onClick={handleLogout} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all w-full ${collapsed ? "justify-center" : ""}`}>
             <LogOut size={17} className="shrink-0" />
             {!collapsed && "Déconnexion"}
           </button>

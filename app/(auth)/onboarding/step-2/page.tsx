@@ -26,12 +26,10 @@ export default function Step2() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("organizations").upsert({
-        email: user.email!,
-        name,
-        sector,
-        phone: phone || null,
-      });
+      await supabase.from("organizations").upsert(
+        { owner_id: user.id, name, sector, phone: phone || null },
+        { onConflict: "owner_id" }
+      );
     }
     router.push("/onboarding/step-3");
   }
