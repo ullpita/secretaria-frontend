@@ -21,9 +21,16 @@ export type CallAction = {
   type: "email" | "calendar_event" | "task";
   label: string | null;
   detail: string | null;
-  status: "success" | "failed" | "pending";
+  status: "success" | "failed" | "pending" | "rejected";
   error: string | null;
   executed_at: string | null;
+  metadata: Record<string, string> | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+};
+
+export type PendingAction = CallAction & {
+  call: { caller_name: string | null; caller_number: string; started_at: string } | null;
 };
 
 export type TaskRow = {
@@ -112,6 +119,50 @@ export async function updateTaskStatus(
 ): Promise<void> {
   const sb = createClient();
   await sb.from("tasks").update({ status }).eq("id", taskId);
+}
+
+export async function getPendingActions(): Promise<PendingAction[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from("call_actions")
+    .select("*, call:calls(caller_name, caller_number, started_at)")
+    .eq("status", "pending")
+    .order("executed_at", { ascending: false });
+  return (data ?? []) as PendingAction[];
+}
+
+export async function getPendingCount(): Promise<number> {
+  const sb = createClient();
+  const { count } = await sb
+    .from("call_actions")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+  return count ?? 0;
+}
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "https://web-production-0c79f.up.railway.app";
+
+export async function approveAction(
+  actionId: string,
+  orgId: string,
+  overrides?: { to?: string; subject?: string; body?: string; title?: string; start_datetime?: string; end_datetime?: string; attendee_email?: string }
+): Promise<{ status: string; error?: string }> {
+  const res = await fetch(`${BACKEND_URL}/actions/${actionId}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ org_id: orgId, ...overrides }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function rejectAction(actionId: string, orgId: string, reason?: string): Promise<void> {
+  const res = await fetch(`${BACKEND_URL}/actions/${actionId}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ org_id: orgId, reason }),
+  });
+  if (!res.ok) throw new Error(await res.text());
 }
 
 export async function getIntegrations(): Promise<Integration[]> {
