@@ -175,12 +175,20 @@ export async function getIntegrations(): Promise<Integration[]> {
 
 export async function requestAccountDeletion(): Promise<void> {
   const sb = createClient();
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) throw new Error("Not authenticated");
+  const { data: sessionData } = await sb.auth.getSession();
+  let token = sessionData.session?.access_token;
+
+  if (!token) {
+    const { data: userData } = await sb.auth.getUser();
+    if (!userData.user) throw new Error("Not authenticated");
+    const { data: refreshed } = await sb.auth.refreshSession();
+    token = refreshed.session?.access_token;
+    if (!token) throw new Error("Could not refresh session");
+  }
 
   const res = await fetch(`${BACKEND_URL}/auth/account/request-delete`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${session.access_token}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(await res.text());
 }
