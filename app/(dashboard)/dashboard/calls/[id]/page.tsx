@@ -22,9 +22,10 @@ const STATUS_CONFIG = {
 };
 const ACTION_ICON: Record<string, React.ElementType> = { email: Mail, calendar_event: Calendar, task: CheckSquare };
 const ACTION_STATUS_CONFIG = {
-  success: { icon: CheckCircle, color: "text-emerald-400" },
-  failed:  { icon: XCircle,     color: "text-red-400" },
-  pending: { icon: RefreshCw,   color: "text-amber-400" },
+  success:  { icon: CheckCircle, color: "text-emerald-400" },
+  failed:   { icon: XCircle,     color: "text-red-400" },
+  pending:  { icon: RefreshCw,   color: "text-amber-400" },
+  rejected: { icon: XCircle,     color: "text-slate-500" },
 };
 const SECTOR_CONFIG: Record<string, { label: string; color: string }> = {
   medical:    { label: "Médical",    color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
