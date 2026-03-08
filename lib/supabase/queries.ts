@@ -183,10 +183,11 @@ export type PhoneConfig = {
 
 export async function getPhoneConfig(): Promise<PhoneConfig> {
   const sb = createClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("organizations")
     .select("sofia_phone, vapi_phone_id, vapi_assistant_id")
-    .single();
+    .maybeSingle();
+  if (error) console.error("[getPhoneConfig] error:", error.code, error.message);
   if (!data) return { configured: false, phone_number: null, vapi_phone_id: null, vapi_assistant_id: null };
   return {
     configured: !!data.sofia_phone,
