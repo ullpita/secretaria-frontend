@@ -173,6 +173,46 @@ export async function getIntegrations(): Promise<Integration[]> {
   return data ?? [];
 }
 
+export type PhoneConfig = {
+  configured: boolean;
+  phone_number: string | null;
+  vapi_phone_id: string | null;
+  vapi_assistant_id: string | null;
+};
+
+export async function getPhoneConfig(): Promise<PhoneConfig> {
+  const sb = createClient();
+  const { data } = await sb
+    .from("organizations")
+    .select("sofia_phone, vapi_phone_id, vapi_assistant_id")
+    .single();
+  if (!data) return { configured: false, phone_number: null, vapi_phone_id: null, vapi_assistant_id: null };
+  return {
+    configured: !!data.sofia_phone,
+    phone_number: data.sofia_phone ?? null,
+    vapi_phone_id: data.vapi_phone_id ?? null,
+    vapi_assistant_id: data.vapi_assistant_id ?? null,
+  };
+}
+
+export async function setupPhone(payload: {
+  org_id: string;
+  twilio_account_sid: string;
+  twilio_auth_token: string;
+  phone_number: string;
+}): Promise<{ success: boolean; phone_number: string; vapi_phone_id: string; vapi_assistant_id: string }> {
+  const res = await fetch(`${BACKEND_URL}/setup/phone`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text);
+  }
+  return res.json();
+}
+
 export async function requestAccountDeletion(): Promise<void> {
   const sb = createClient();
   const { data: sessionData } = await sb.auth.getSession();
