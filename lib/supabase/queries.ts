@@ -71,13 +71,9 @@ function formatDuration(seconds: number): string {
 export { formatDuration };
 
 export async function getOrg(): Promise<OrgRow | null> {
-  const sb = createClient();
-  const { data, error } = await sb
-    .from("organizations")
-    .select("id, name, sector, phone, trial_ends, plan")
-    .maybeSingle();
-  if (error) console.error("[getOrg] error:", error.code, error.message, error.details);
-  return data;
+  const res = await fetch("/api/org", { credentials: "include" });
+  if (!res.ok) return null;
+  return res.json();
 }
 
 export async function getCalls(): Promise<CallRow[]> {
