@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Mail, Calendar, CheckCircle, XCircle, ExternalLink, Loader2, Phone, Eye, EyeOff } from "lucide-react";
-import { getIntegrations, getOrg, getPhoneConfig, setupPhone, type Integration, type PhoneConfig } from "@/lib/supabase/queries";
+import { getIntegrations, getOrg, getPhoneConfig, setupPhone, provisionPhone, type Integration, type PhoneConfig } from "@/lib/supabase/queries";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "https://web-production-0c79f.up.railway.app";
 
@@ -38,6 +38,7 @@ export default function IntegrationsPage() {
 
   // Phone setup state
   const [phoneConfig, setPhoneConfig] = useState<PhoneConfig | null>(null);
+  const [phoneTab, setPhoneTab] = useState<"provision" | "own">("provision");
   const [showPhoneForm, setShowPhoneForm] = useState(false);
   const [phoneSid, setPhoneSid] = useState("");
   const [phoneToken, setPhoneToken] = useState("");
@@ -57,6 +58,22 @@ export default function IntegrationsPage() {
     });
   }, []);
 
+  async function handleProvision() {
+    if (!orgId) return;
+    setPhoneLoading(true);
+    setPhoneError(null);
+    try {
+      const result = await provisionPhone(orgId);
+      setPhoneConfig({ configured: true, phone_number: result.phone_number, vapi_phone_id: result.vapi_phone_id, vapi_assistant_id: result.vapi_assistant_id });
+      setPhoneSuccess(true);
+      setShowPhoneForm(false);
+    } catch (err: unknown) {
+      setPhoneError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setPhoneLoading(false);
+    }
+  }
+
   async function handlePhoneSetup(e: React.FormEvent) {
     e.preventDefault();
     if (!orgId) return;
@@ -69,17 +86,11 @@ export default function IntegrationsPage() {
         twilio_auth_token: phoneToken.trim(),
         phone_number: phoneNumber.trim(),
       });
-      setPhoneConfig({
-        configured: true,
-        phone_number: result.phone_number,
-        vapi_phone_id: result.vapi_phone_id,
-        vapi_assistant_id: result.vapi_assistant_id,
-      });
+      setPhoneConfig({ configured: true, phone_number: result.phone_number, vapi_phone_id: result.vapi_phone_id, vapi_assistant_id: result.vapi_assistant_id });
       setPhoneSuccess(true);
       setShowPhoneForm(false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erreur inconnue";
-      setPhoneError(msg);
+      setPhoneError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setPhoneLoading(false);
     }
@@ -200,73 +211,95 @@ export default function IntegrationsPage() {
             </div>
           )}
 
-          {/* Setup form */}
+          {/* Setup panel */}
           {showPhoneForm && (
-            <form onSubmit={handlePhoneSetup} className="border-t border-white/5 p-5 space-y-4">
-              <p className="text-slate-400 text-xs">
-                Trouvez ces informations sur{" "}
-                <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline inline-flex items-center gap-0.5">
-                  console.twilio.com <ExternalLink size={10} />
-                </a>
-              </p>
+            <div className="border-t border-white/5 p-5 space-y-4">
+              {/* Tabs */}
+              <div className="flex gap-2">
+                {(["provision", "own"] as const).map((tab) => (
+                  <button key={tab} onClick={() => { setPhoneTab(tab); setPhoneError(null); }}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                      phoneTab === tab
+                        ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                        : "bg-white/5 border-white/5 text-slate-400 hover:bg-white/10"
+                    }`}
+                  >
+                    {tab === "provision" ? "✨ Numéro Secretaria" : "🔌 Mon numéro existant"}
+                  </button>
+                ))}
+              </div>
 
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-400 mb-1.5 block">Account SID</label>
-                  <input
-                    type="text"
-                    placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                    value={phoneSid}
-                    onChange={(e) => setPhoneSid(e.target.value)}
-                    required
-                    className="w-full bg-[#0E0E18] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 mb-1.5 block">Auth Token</label>
-                  <div className="relative">
-                    <input
-                      type={showToken ? "text" : "password"}
-                      placeholder="••••••••••••••••••••••••••••••••"
-                      value={phoneToken}
-                      onChange={(e) => setPhoneToken(e.target.value)}
-                      required
-                      className="w-full bg-[#0E0E18] border border-white/10 rounded-xl px-3 py-2.5 pr-10 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono"
-                    />
-                    <button type="button" onClick={() => setShowToken(!showToken)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
-                      {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
+              {/* Tab A — provision */}
+              {phoneTab === "provision" && (
+                <div className="bg-[#0E0E18] border border-white/5 rounded-xl p-5 space-y-4">
+                  <div>
+                    <p className="text-white text-sm font-medium mb-1">Un numéro français dédié</p>
+                    <p className="text-slate-400 text-xs leading-relaxed">
+                      Secretaria vous attribue automatiquement un numéro français.
+                      Aucun compte Twilio requis. Inclus dans votre abonnement.
+                    </p>
                   </div>
+                  {phoneError && (
+                    <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{phoneError}</p>
+                  )}
+                  <button onClick={handleProvision} disabled={phoneLoading}
+                    className="btn-primary inline-flex items-center gap-2 text-white font-semibold px-5 py-2.5 rounded-xl text-sm disabled:opacity-60"
+                  >
+                    {phoneLoading ? <><Loader2 size={14} className="animate-spin" /> Attribution en cours…</> : "Obtenir mon numéro →"}
+                  </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-400 mb-1.5 block">Numéro de téléphone (format E.164)</label>
-                <input
-                  type="text"
-                  placeholder="+33159580013"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  required
-                  className="w-full bg-[#0E0E18] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono"
-                />
-              </div>
-
-              {phoneError && (
-                <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
-                  {phoneError}
-                </p>
               )}
 
-              <button
-                type="submit"
-                disabled={phoneLoading}
-                className="btn-primary inline-flex items-center gap-2 text-white font-semibold px-5 py-2.5 rounded-xl text-sm disabled:opacity-60"
-              >
-                {phoneLoading ? <><Loader2 size={14} className="animate-spin" /> Configuration en cours…</> : "Connecter Sofia →"}
-              </button>
-            </form>
+              {/* Tab B — bring your own */}
+              {phoneTab === "own" && (
+                <form onSubmit={handlePhoneSetup} className="space-y-3">
+                  <p className="text-slate-400 text-xs">
+                    Vos identifiants sur{" "}
+                    <a href="https://console.twilio.com" target="_blank" rel="noopener noreferrer"
+                      className="text-emerald-400 hover:underline inline-flex items-center gap-0.5">
+                      console.twilio.com <ExternalLink size={10} />
+                    </a>
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-slate-400 mb-1.5 block">Account SID</label>
+                      <input type="text" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        value={phoneSid} onChange={(e) => setPhoneSid(e.target.value)} required
+                        className="w-full bg-[#0E0E18] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 mb-1.5 block">Auth Token</label>
+                      <div className="relative">
+                        <input type={showToken ? "text" : "password"} placeholder="••••••••••••••••••••••••••••••••"
+                          value={phoneToken} onChange={(e) => setPhoneToken(e.target.value)} required
+                          className="w-full bg-[#0E0E18] border border-white/10 rounded-xl px-3 py-2.5 pr-10 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono"
+                        />
+                        <button type="button" onClick={() => setShowToken(!showToken)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+                          {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1.5 block">Numéro (format E.164)</label>
+                    <input type="text" placeholder="+33159580013"
+                      value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required
+                      className="w-full bg-[#0E0E18] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500/40 font-mono"
+                    />
+                  </div>
+                  {phoneError && (
+                    <p className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{phoneError}</p>
+                  )}
+                  <button type="submit" disabled={phoneLoading}
+                    className="btn-primary inline-flex items-center gap-2 text-white font-semibold px-5 py-2.5 rounded-xl text-sm disabled:opacity-60"
+                  >
+                    {phoneLoading ? <><Loader2 size={14} className="animate-spin" /> Configuration en cours…</> : "Connecter Sofia →"}
+                  </button>
+                </form>
+              )}
+            </div>
           )}
         </div>
       </div>

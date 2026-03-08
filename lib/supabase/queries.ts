@@ -206,10 +206,17 @@ export async function setupPhone(payload: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text);
-  }
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function provisionPhone(org_id: string): Promise<{ success: boolean; phone_number: string; vapi_phone_id: string; vapi_assistant_id: string }> {
+  const res = await fetch(`${BACKEND_URL}/setup/phone/provision`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ org_id }),
+  });
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
