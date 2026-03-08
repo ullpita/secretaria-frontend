@@ -59,7 +59,7 @@ export default function IntegrationsPage() {
   }, []);
 
   async function handleProvision() {
-    if (!orgId) return;
+    if (!orgId) { setPhoneError("Impossible de charger votre organisation. Rechargez la page."); return; }
     setPhoneLoading(true);
     setPhoneError(null);
     try {
@@ -76,7 +76,7 @@ export default function IntegrationsPage() {
 
   async function handlePhoneSetup(e: React.FormEvent) {
     e.preventDefault();
-    if (!orgId) return;
+    if (!orgId) { setPhoneError("Impossible de charger votre organisation. Rechargez la page."); return; }
     setPhoneLoading(true);
     setPhoneError(null);
     try {
